@@ -5,18 +5,22 @@ import * as Location from "expo-location";
 import Icon from 'react-native-vector-icons/FontAwesome'
 
 const gooseLocations = [
-{ name: 'Tupelo Point',
+{ type: 'Friendly Goose',
 coord: {latitude: 42.28929, longitude: -71.30570},
-color: 'yellow' },
-{ name: 'Paramecium Pond',
+color: 'blue',
+name: 'test1'},
+{ type: 'Gosling',
 coord: {latitude: 42.29476, longitude: -71.30512},
-color: 'cyan' },
-{ name: 'Paintshop Pond Waterfall',
+color: 'pink',
+name: 'test2' },
+{ type: 'Mean Goose',
 coord: {latitude: 42.29219, longitude: -71.31515},
-color: 'magenta' },
-{ name: 'Middle of Lake Waban',
+color: 'red',
+name: 'test3' },
+{ type: 'Gosling',
 coord: {latitude: 42.288355, longitude: -71.308947},
-color: 'blue' },
+color: 'pink',
+name: 'test4' },
 ]
 
 export default class App extends Component {
@@ -46,21 +50,23 @@ export default class App extends Component {
     );
   };
 
-  addMarker(location1) {
+  addMarker(location1, color1, type1) {
   let date1 = new Date(Date.now()).toString();
   this.setState({
-    rememberedLocations: [...this.state.rememberedLocations, {coord: {latitude: location1.coords.latitude, longitude: location1.coords.longitude}, date: date1}]
+    rememberedLocations: [...this.state.rememberedLocations, {coord: {latitude: location1.coords.latitude, longitude: location1.coords.longitude}, date: date1, color: color1, type:type1}]
   })
 }
 
 createTwoButtonAlert() {
     Alert.alert(
-      "Alert Title",
-      "My Alert Msg",
+      "Add a Goose",
+      "Please select an option for your marker",
       [
         
-        { text: "OK", onPress: () => console.log("OK Pressed") },
-        {text:'Goose', onPress:()=> this.addMarker(this.state.location)},
+        { text: "Friendly Goose", onPress: () => this.addMarker(this.state.location, "blue", "Friendly Goose") },
+        { text: "Mean Goose", onPress: () => this.addMarker(this.state.location, "red", "Mean Goose") },
+        { text: "Gosling", onPress: () => this.addMarker(this.state.location, "pink", "Gosling") },
+        { text: "Poopy", onPress: () => this.addMarker(this.state.location, "green", "Poopy") },
         {
           text: "Cancel",
           onPress: () => console.log("Cancel Pressed"),
@@ -108,7 +114,7 @@ createTwoButtonAlert() {
                 longitude: sloc.coord.longitude}
               }
               pinColor={sloc.color}
-              title={sloc.name}
+              title={sloc.type}
             >
             </Marker>
             )
@@ -121,8 +127,8 @@ createTwoButtonAlert() {
                 {latitude: sloc.coord.latitude,
                 longitude: sloc.coord.longitude}
               }
-              pinColor='red'
-              title={sloc.date}
+              pinColor={sloc.color}
+              title={sloc.type}
             >
             </Marker>
             )
