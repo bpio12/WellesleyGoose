@@ -229,6 +229,7 @@ export default function App() {
     return {...data, date: new Date(data.timestamp)}
   }
 
+  //seems important 
   async function firebaseGetMessagesForChannel(chan) {
     const q = query(collection(db, 'messages'), where('channel', '==', chan));
     const querySnapshot = await getDocs(q);

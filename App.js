@@ -32,26 +32,38 @@ const firebaseConfig = {
 // Initialize Firebase
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
-const db = getFirestore(firebaseApp); // *** new for Firestore
+const db = getFirestore(firebaseApp); 
 
-const gooseLocations = [
+let gooseLocations = [
 { type: 'Friendly Goose',
 coord: {latitude: 42.28929, longitude: -71.30570},
-color: 'blue',
-name: 'test1'},
-{ type: 'Gosling',
-coord: {latitude: 42.29476, longitude: -71.30512},
-color: 'pink',
-name: 'test2' },
-{ type: 'Mean Goose',
-coord: {latitude: 42.29219, longitude: -71.31515},
-color: 'red',
-name: 'test3' },
-{ type: 'Gosling',
-coord: {latitude: 42.288355, longitude: -71.308947},
-color: 'pink',
-name: 'test4' },
+color: 'blue'}
 ]
+
+function docToMessage(msgDoc) {
+  // msgDoc has the form {id: timestampetring, 
+  //                   data: {timestamp: ..., 
+  //                          author: ..., 
+  //                          channel: ..., 
+  //                          content: ...}
+  // Need to add missing date field to data portion, reconstructed from timestamp
+  console.log('docToMessage');
+  const data = msgDoc.data();
+  console.log(msgDoc.id, " => ", data);
+  return {...data, date: new Date(data.timestamp)}
+}
+
+async function firebaseGetGoosePins() {
+  const q = query(collection(db, 'pins'));
+  const querySnapshot = await getDocs(q);
+  // const messages = Array.from(querySnapshot).map( docToMessage );
+  let pins = []; 
+  querySnapshot.forEach(doc => {
+      pins.push(docToMessage(doc));
+  });
+  console.log(gooseLocations)
+  gooseLocations = pins
+}
 
 export default class App extends Component {
   constructor(props) {
@@ -116,10 +128,10 @@ createTwoButtonAlert() {
 
 
     render() {
+      firebaseGetGoosePins()
+      
     return (
-     
       <View style={styles.container}>
-
       <View style={styles.navBar}>
       <Icon 
           name={'user'}
