@@ -2,7 +2,21 @@ import React, { Component } from "react";
 import { StyleSheet, View, Text, TouchableOpacity,Alert} from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
-import Icon from 'react-native-vector-icons/FontAwesome'
+import Icon from 'react-native-vector-icons/FontAwesome';
+import { initializeApp } from "firebase/app";
+import { // access to authentication features:
+         getAuth, 
+         // for email/password authentication: 
+         createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification,
+         // for logging out:
+         signOut
+  } from "firebase/auth";
+import { // access to Firestore storage features:
+         getFirestore, 
+         // for storage access
+         collection, doc, addDoc, setDoc,
+         query, where, getDocs
+  } from "firebase/firestore";
 
 const gooseLocations = [
 { type: 'Friendly Goose',
