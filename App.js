@@ -18,6 +18,22 @@ import { // access to Firestore storage features:
          query, where, getDocs
   } from "firebase/firestore";
 
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCeJf04mc48AC_t2gl5sXegKpRVbsv5Zqk",
+  authDomain: "goose-51fe9.firebaseapp.com",
+  projectId: "goose-51fe9",
+  storageBucket: "goose-51fe9.appspot.com",
+  messagingSenderId: "912462102483",
+  appId: "1:912462102483:web:62f1cab6e559c0848c3926",
+  measurementId: "G-M0NTZG2KJR"
+}
+
+// Initialize Firebase
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp); // *** new for Firestore
+
 const gooseLocations = [
 { type: 'Friendly Goose',
 coord: {latitude: 42.28929, longitude: -71.30570},
