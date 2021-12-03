@@ -1,29 +1,8 @@
 import React, { Component } from "react";
-import { StyleSheet, View, Text, TouchableOpacity,Alert } from "react-native";
+import { StyleSheet, View, Text, TouchableOpacity,Alert} from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import Icon from 'react-native-vector-icons/FontAwesome'
-import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, signOut} from "firebase/auth";
-import { getFirestore, collection, doc, addDoc, setDoc, query, where, getDocs} from "firebase/firestore";
-
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCeJf04mc48AC_t2gl5sXegKpRVbsv5Zqk",
-  authDomain: "goose-51fe9.firebaseapp.com",
-  projectId: "goose-51fe9",
-  storageBucket: "goose-51fe9.appspot.com",
-  messagingSenderId: "912462102483",
-  appId: "1:912462102483:web:62f1cab6e559c0848c3926",
-  measurementId: "G-M0NTZG2KJR"
-};
-
-
-// Initialize Firebase
-const firebaseApp = initializeApp(firebaseConfig);
-const auth = getAuth(firebaseApp);
-const db = getFirestore(firebaseApp); // *** new for Firestore
 
 const gooseLocations = [
 { type: 'Friendly Goose',
@@ -110,7 +89,18 @@ createTwoButtonAlert() {
     return (
      
       <View style={styles.container}>
-      
+
+      <View style={styles.navBar}>
+      <Icon 
+          name={'user'}
+          size={30}
+      />
+        <Text style={styles.titleText}>Goose</Text>
+        <Icon 
+          name={'bell'}
+          size={30}
+      />
+      </View>
       
       {(this.state.location!==null) &&
         <MapView
@@ -165,6 +155,7 @@ createTwoButtonAlert() {
           size={30}
           />
       </TouchableOpacity>
+
       </View>
     );
   }
@@ -188,15 +179,18 @@ function logVal(msg, val) {
 const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: "#fff",
-      margin: 50
+      backgroundColor: "#B5E2FA",
+      marginTop: 40,
+      marginBottom:20,
+      marginLeft:10,
+      marginRight:10,
     },
     text: {
       padding: 10,
     },
     button: {
       borderWidth:1,
-      borderColor:'rgba(0,0,0,0.2)',
+      borderColor:'#0FA3B1',
       alignItems: 'center',
       justifyContent: 'center',
       width:100,
@@ -205,129 +199,17 @@ const styles = StyleSheet.create({
       paddingVertical: 12,
       paddingHorizontal: 32,
       elevation: 3,
-      backgroundColor: 'skyblue',
+      backgroundColor: '#0FA3B1',
     },
+    titleText: {
+      fontSize: 20,
+      fontWeight: "bold"
+    },
+    navBar: {
+      flexDirection: 'row',
+      paddingTop: 30,
+      height: 64,
+      backgroundColor: '#B5E2FA',
+      justifyContent: 'space-around'
+   },
   });
-
-
-
-// Code from Lyn's app to log in and sign up
-
-  /* 
-  // Clear error message when email is updated to be nonempty
-  useEffect(
-    () => { if (email != '') setErrorMsg(''); },
-    [email]
-  ); 
-
-  function signUpUserEmailPassword() {
-    console.log('called signUpUserEmailPassword');
-    if (auth.currentUser) {
-      signOut(auth); // sign out auth's current user (who is not loggedInUser, 
-                     // or else we wouldn't be here
-    }
-    if (!email.includes('@')) {
-      setErrorMsg('Not a valid email address');
-      return;
-    }
-    if (password.length < 6) {
-      setErrorMsg('Password too short');
-      return;
-    }
-    // Invoke Firebase authentication API for Email/Password sign up 
-    createUserWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        console.log(`signUpUserEmailPassword: sign up for email ${email} succeeded (but email still needs verification).`);
-
-        // Clear email/password inputs
-        const savedEmail = email; // Save for email verification
-        setEmail('');
-        setPassword('');
-
-        // Note: could store userCredential here if wanted it later ...
-        // console.log(`createUserWithEmailAndPassword: setCredential`);
-        // setCredential(userCredential);
-
-        // Send verication email
-        console.log('signUpUserEmailPassword: about to send verification email');
-        sendEmailVerification(auth.currentUser)
-        .then(() => {
-            console.log('signUpUserEmailPassword: sent verification email');
-            setErrorMsg(`A verification email has been sent to ${savedEmail}. You will not be able to sign in to this account until you click on the verification link in that email.`); 
-            // Email verification sent!
-            // ...
-          });
-      })
-      .catch((error) => {
-        console.log(`signUpUserEmailPassword: sign up failed for email ${email}`);
-        const errorMessage = error.message;
-        // const errorCode = error.code; // Could use this, too.
-        console.log(`createUserWithEmailAndPassword: ${errorMessage}`);
-        setErrorMsg(`createUserWithEmailAndPassword: ${errorMessage}`);
-      });
-  }
-
-  function signInUserEmailPassword() {
-    console.log('called signInUserEmailPassword');
-    console.log(`signInUserEmailPassword: emailOf(currentUser)0=${emailOf(auth.currentUser)}`); 
-    console.log(`signInUserEmailPassword: emailOf(loggedInUser)0=${emailOf(loggedInUser)}`); 
-    // Invoke Firebase authentication API for Email/Password sign in 
-    // Use Email/Password for authentication 
-    signInWithEmailAndPassword(auth, email, password)
-                               /* 
-                               defaultEmail ? defaultEmail : email, 
-                               defaultPassword ? defaultPassword : password
-                               
-                               .then((userCredential) => {
-                                console.log(`signInUserEmailPassword succeeded for email ${email}; have userCredential for emailOf(auth.currentUser)=${emailOf(auth.currentUser)} (but may not be verified)`); 
-                                console.log(`signInUserEmailPassword: emailOf(currentUser)1=${emailOf(auth.currentUser)}`); 
-                                console.log(`signInUserEmailPassword: emailOf(loggedInUser)1=${emailOf(loggedInUser)}`); 
-                        
-                                // Only log in auth.currentUser if their email is verified
-                                checkEmailVerification();
-                        
-                                // Clear email/password inputs 
-                                setEmail('');
-                                setPassword('');
-                        
-                                // Note: could store userCredential here if wanted it later ...
-                                // console.log(`createUserWithEmailAndPassword: setCredential`);
-                                // setCredential(userCredential);
-                            
-                                })
-                              .catch((error) => {
-                                console.log(`signUpUserEmailPassword: sign in failed for email ${email}`);
-                                const errorMessage = error.message;
-                                // const errorCode = error.code; // Could use this, too.
-                                console.log(`signInUserEmailPassword: ${errorMessage}`);
-                                setErrorMsg(`signInUserEmailPassword: ${errorMessage}`);
-                              });
-                          }
-                        
-                          function checkEmailVerification() {
-                            if (auth.currentUser) {
-                              console.log(`checkEmailVerification: auth.currentUser.emailVerified=${auth.currentUser.emailVerified}`);
-                              if (auth.currentUser.emailVerified) {
-                                console.log(`checkEmailVerification: setLoggedInUser for ${auth.currentUser.email}`);
-                                setLoggedInUser(auth.currentUser);
-                                console.log("checkEmailVerification: setErrorMsg('')")
-                                setErrorMsg('')
-                              } else {
-                                console.log('checkEmailVerification: remind user to verify email');
-                                setErrorMsg(`You cannot sign in as ${auth.currentUser.email} until you verify that this is your email address. You can verify this email address by clicking on the link in a verification email sent by this app to ${auth.currentUser.email}.`)
-                              }
-                            }
-                          }
-                        
-                          function logOut() {
-                            console.log('logOut'); 
-                            console.log(`logOut: emailOf(auth.currentUser)=${emailOf(auth.currentUser)}`);
-                            console.log(`logOut: emailOf(loggedInUser)=${emailOf(loggedInUser)}`);
-                            console.log(`logOut: setLoggedInUser(null)`);
-                            setLoggedInUser(null);
-                            console.log('logOut: signOut(auth)');
-                            signOut(auth); // Will eventually set auth.currentUser to null     
-                          }
-  
-  
-  */
