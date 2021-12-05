@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Component } from "react";
+import GetLocation from 'react-native-get-location'
 import { StyleSheet, View, Text, TouchableOpacity,Alert, TextInput, ScrollView} from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
@@ -53,7 +54,9 @@ export default function App() {
   const [password, setPassword] = React.useState(''); // Provide default passwored for testing
   const [errorMsg, setErrorMsg] = React.useState('');
   const [loggedInUser, setLoggedInUser] = React.useState(null);
-  const [location, getLocationAsync] = React.useState(null); //fix this
+  const [location, setLocation] = React.useState(GeoPoint); //fix this
+  const [locationServiceEnabled, setLocationServiceEnabled] = useState(false);
+  
   //this.addMarker = this.addMarker.bind(this);
 
 
@@ -65,9 +68,10 @@ useEffect( () => {
     signInUserEmailPassword();
   } 
   checkEmailVerification();
-
   firebaseGetGoosePins();
-  getLocationAsync();
+
+  CheckIfLocationEnabled();
+  GetCurrentLocation();
   
   // This has worked already, so commenting it out
   // console.log(`on mount: populateFirestoreDB(testMessages)`);
@@ -78,6 +82,39 @@ useEffect( () => {
   }
 }, []);
 
+const CheckIfLocationEnabled = async () => {
+  let enabled = await Location.hasServicesEnabledAsync();
+
+  if (!enabled) {
+    Alert.alert(
+      'Location Service not enabled',
+      'Please enable your location services to continue',
+      [{ text: 'OK' }],
+      { cancelable: false }
+    );
+  } else {
+    setLocationServiceEnabled(enabled);
+  }
+};
+
+const GetCurrentLocation = async () => {
+  let { status } = await Location.requestPermissionsAsync();
+
+  if (status !== 'granted') {
+    Alert.alert(
+      'Permission not granted',
+      'Allow the app to use location service.',
+      [{ text: 'OK' }],
+      { cancelable: false }
+    );
+  }
+
+  let { coords } = await Location.getCurrentPositionAsync();
+
+  if (coords) {
+    setLocation(coords)
+    }
+  };
 
 function signUpUserEmailPassword() {
   console.log('called signUpUserEmailPassword');
@@ -216,32 +253,19 @@ async function firebaseGetGoosePins() {
   gooseLocations = pins
 }
 
-async function addMarker(location1, color1, type1) {
-  let date1 = new Date(Date.now()).toString();
-  addDoc(collection(db, "pins"), 
-        {
-          'timestamp': date1, 
-          'coord': new GeoPoint(location1.coords.latitude, location1.coords.longitude),
-          'color': color1, 
-          'type': type1, 
-        }
-      );
-}
-
 async function getLocationAsync() {
-  // watchPositionAsync returns location with lat, long, & more on location change
-  this.subscription = await Location.watchPositionAsync(
-    // Argument #1: location options
-    {
-      enableHighAccuracy: true,
-      distanceInterval: 1,
-      timeInterval: 10000 // check for location change every 10 seconds
-    },
-    // Argument #2: location callback
-    newLocation => {
-      this.setState({ location: newLocation});
-    }
-  );
+  GetLocation.getCurrentPosition({
+    enableHighAccuracy: true,
+    timeout: 15000,
+})
+.then(location => {
+    console.log(location);
+    setLocation(location);
+})
+.catch(error => {
+    const { code, message } = error;
+    console.warn(code, message);
+})
 };
 
 /***************************************************************************
@@ -309,6 +333,18 @@ function createTwoButtonAlert() {
   );
   }
 
+function addMarker(location1, color1, type1) {
+  let date1 = new Date(Date.now()).toString();
+  addDoc(collection(db, "pins"), 
+        {
+          'timestamp': date1, 
+          'coord': new GeoPoint(location1.coords.latitude, location1.coords.longitude),
+          'color': color1, 
+          'type': type1, 
+        }
+      );
+  }
+
 function mapPage() {
   return(
   <View style={loggedInUser === null ? styles.hidden : styles.container}>
@@ -329,8 +365,8 @@ function mapPage() {
       {({location} !== null) &&
         <MapView
           initialRegion={
-              {latitude: {location}.coords.latitude,
-               longitude: {location}.coords.longitude,
+              {latitude: {location}.latitude,
+               longitude: {location}.longitude,
                latitudeDelta: 0.045,
                longitudeDelta: 0.045
               }
