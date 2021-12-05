@@ -15,7 +15,7 @@ import { // access to Firestore storage features:
          getFirestore, 
          // for storage access
          collection, doc, addDoc, setDoc,
-         query, where, getDocs
+         query, where, getDocs, GeoPoint
   } from "firebase/firestore";
 
 
@@ -34,11 +34,7 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp); 
 
-let gooseLocations = [
-{ type: 'Friendly Goose',
-coord: {latitude: 42.28929, longitude: -71.30570},
-color: 'blue'}
-]
+let gooseLocations = []
 
 function docToMessage(msgDoc) {
   // msgDoc has the form {id: timestampetring, 
@@ -47,9 +43,9 @@ function docToMessage(msgDoc) {
   //                          channel: ..., 
   //                          content: ...}
   // Need to add missing date field to data portion, reconstructed from timestamp
-  console.log('docToMessage');
+  //console.log('docToMessage');
   const data = msgDoc.data();
-  console.log(msgDoc.id, " => ", data);
+  //console.log(msgDoc.id, " => ", data);
   return {...data, date: new Date(data.timestamp)}
 }
 
@@ -61,7 +57,7 @@ async function firebaseGetGoosePins() {
   querySnapshot.forEach(doc => {
       pins.push(docToMessage(doc));
   });
-  console.log(gooseLocations)
+  //console.log(gooseLocations)
   gooseLocations = pins
 }
 
@@ -92,11 +88,20 @@ export default class App extends Component {
     );
   };
 
-  addMarker(location1, color1, type1) {
-  let date1 = new Date(Date.now()).toString();
-  this.setState({
-    rememberedLocations: [...this.state.rememberedLocations, {coord: {latitude: location1.coords.latitude, longitude: location1.coords.longitude}, date: date1, color: color1, type:type1}]
-  })
+  async addMarker(location1, color1, type1) {
+    let date1 = new Date(Date.now()).toString();
+    this.setState({
+      rememberedLocations: [...this.state.rememberedLocations, {coord: {latitude: location1.coords.latitude, longitude: location1.coords.longitude}, date: date1, color: color1, type:type1}]
+    })
+    //const timestampString = date1.toString();
+    await addDoc(collection(db, "pins"), 
+          {
+            'timestamp': date1, 
+            'coord': new GeoPoint(location1.coords.latitude, location1.coords.longitude),
+            'color': color1, 
+            'type': type1, 
+          }
+        );
 }
 
 createTwoButtonAlert() {
@@ -213,7 +218,7 @@ function alertVal(msg, val) {
 
 /** Write msg and value to console.log before returning value */
 function logVal(msg, val) {
-  console.log(`${msg}:${JSON.stringify(val)}`);
+  //console.log(`${msg}:${JSON.stringify(val)}`);
   return val;
 }
 
