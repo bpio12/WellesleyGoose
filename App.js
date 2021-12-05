@@ -54,7 +54,7 @@ export default function App() {
   const [password, setPassword] = React.useState(''); // Provide default passwored for testing
   const [errorMsg, setErrorMsg] = React.useState('');
   const [loggedInUser, setLoggedInUser] = React.useState(null);
-  const [location, setLocation] = React.useState(GeoPoint); //fix this
+  const [location, setLocation] = React.useState(null); //fix this
   const [locationServiceEnabled, setLocationServiceEnabled] = useState(false);
   
   //this.addMarker = this.addMarker.bind(this);
@@ -253,20 +253,6 @@ async function firebaseGetGoosePins() {
   gooseLocations = pins
 }
 
-async function getLocationAsync() {
-  GetLocation.getCurrentPosition({
-    enableHighAccuracy: true,
-    timeout: 15000,
-})
-.then(location => {
-    console.log(location);
-    setLocation(location);
-})
-.catch(error => {
-    const { code, message } = error;
-    console.warn(code, message);
-})
-};
 
 /***************************************************************************
    AUTHENTICATION CODE
