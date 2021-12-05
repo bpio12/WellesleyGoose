@@ -1,5 +1,5 @@
-import React, { Component } from "react";
-import { StyleSheet, View, Text, TouchableOpacity,Alert} from "react-native";
+import React, { useState, useEffect, Component } from "react";
+import { StyleSheet, View, Text, TouchableOpacity,Alert, TextInput, ScrollView} from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -33,21 +33,13 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp); 
-const [email, setEmail] = React.useState(''); // Provide default email for testing
-const [password, setPassword] = React.useState(''); // Provide default passwored for testing
-const [errorMsg, setErrorMsg] = React.useState('');
-const [loggedInUser, setLoggedInUser] = React.useState(null);
-export default class App extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      location: null,
-      foregroundPerms: 'unknown',
-      rememberedLocations: [],
-    };
-    this.addMarker = this.addMarker.bind(this);
-  }
 
+function formatJSON(jsonVal) {
+  // Lyn sez: replacing \n by <br/> not necesseary if use this CSS:
+  //   white-space: break-spaces; (or pre-wrap)
+  // let replacedNewlinesByBRs = prettyPrintedVal.replace(new RegExp('\n', 'g'), '<br/>')
+  return JSON.stringify(jsonVal, null, 2);
+}
 function emailOf(user) {
   if (user) {
     return user.email;
@@ -55,6 +47,16 @@ function emailOf(user) {
     return null;
   }
 }
+
+export default function App() {
+  const [email, setEmail] = React.useState(''); // Provide default email for testing
+  const [password, setPassword] = React.useState(''); // Provide default passwored for testing
+  const [errorMsg, setErrorMsg] = React.useState('');
+  const [loggedInUser, setLoggedInUser] = React.useState(null);
+  const [location, getLocationAsync] = React.useState(null); //fix this
+  //this.addMarker = this.addMarker.bind(this);
+
+
 
 useEffect( () => {
   if (email !== '' && password !== '') {
@@ -64,7 +66,8 @@ useEffect( () => {
   } 
   checkEmailVerification();
 
-  firebaseGetGoosePins(); // find messages on mount 
+  firebaseGetGoosePins();
+  getLocationAsync();
   
   // This has worked already, so commenting it out
   // console.log(`on mount: populateFirestoreDB(testMessages)`);
@@ -212,6 +215,39 @@ async function firebaseGetGoosePins() {
   //console.log(gooseLocations)
   gooseLocations = pins
 }
+
+async function addMarker(location1, color1, type1) {
+  let date1 = new Date(Date.now()).toString();
+  addDoc(collection(db, "pins"), 
+        {
+          'timestamp': date1, 
+          'coord': new GeoPoint(location1.coords.latitude, location1.coords.longitude),
+          'color': color1, 
+          'type': type1, 
+        }
+      );
+}
+
+async function getLocationAsync() {
+  // watchPositionAsync returns location with lat, long, & more on location change
+  this.subscription = await Location.watchPositionAsync(
+    // Argument #1: location options
+    {
+      enableHighAccuracy: true,
+      distanceInterval: 1,
+      timeInterval: 10000 // check for location change every 10 seconds
+    },
+    // Argument #2: location callback
+    newLocation => {
+      this.setState({ location: newLocation});
+    }
+  );
+};
+
+/***************************************************************************
+   AUTHENTICATION CODE
+***************************************************************************/
+
 function loginPane() {
   return (
     <View style={loggedInUser === null ? styles.loginLogoutPane : styles.hidden}>
@@ -254,6 +290,25 @@ function loggedInUserPane() {
   );
 }
 
+function createTwoButtonAlert() {
+  Alert.alert(
+    "Add a Goose",
+    "Please select an option for your marker",
+    [
+      
+      { text: "Friendly Goose", onPress: () => this.addMarker({location}, "blue", "Friendly Goose") },
+      { text: "Mean Goose", onPress: () => this.addMarker({location}, "red", "Mean Goose") },
+      { text: "Gosling", onPress: () => this.addMarker({location}, "pink", "Gosling") },
+      { text: "Poopy", onPress: () => this.addMarker({location}, "green", "Poopy") },
+      {
+        text: "Cancel",
+        onPress: () => console.log("Cancel Pressed"),
+        style: "cancel"
+      }
+    ]
+  );
+  }
+
 function mapPage() {
   return(
   <View style={loggedInUser === null ? styles.hidden : styles.container}>
@@ -271,11 +326,11 @@ function mapPage() {
       />
       </View>
       
-      {(this.state.location!==null) &&
+      {({location} !== null) &&
         <MapView
           initialRegion={
-              {latitude: this.state.location.coords.latitude,
-               longitude: this.state.location.coords.longitude,
+              {latitude: {location}.coords.latitude,
+               longitude: {location}.coords.longitude,
                latitudeDelta: 0.045,
                longitudeDelta: 0.045
               }
@@ -299,21 +354,6 @@ function mapPage() {
             </Marker>
             )
           }
-          
-        {
-          this.state.rememberedLocations.map( sloc =>
-            <Marker key={sloc.date}
-              coordinate={
-                {latitude: sloc.coord.latitude,
-                longitude: sloc.coord.longitude}
-              }
-              pinColor={sloc.color}
-              title={sloc.type}
-            >
-            </Marker>
-            )
-          }
-
         </MapView>
       }
       <TouchableOpacity 
@@ -327,96 +367,16 @@ function mapPage() {
 
       </View>
   )
-}
-
-
-
-  _getLocationAsync = async () => {
-    // watchPositionAsync returns location with lat, long, & more on location change
-    this.subscription = await Location.watchPositionAsync(
-      // Argument #1: location options
-      {
-        enableHighAccuracy: true,
-        distanceInterval: 1,
-        timeInterval: 10000 // check for location change every 10 seconds
-      },
-      // Argument #2: location callback
-      newLocation => {
-        this.setState({ location: newLocation});
-      }
-    );
-  };
-
-  async addMarker(location1, color1, type1) {
-    let date1 = new Date(Date.now()).toString();
-    this.setState({
-      rememberedLocations: [...this.state.rememberedLocations, {coord: {latitude: location1.coords.latitude, longitude: location1.coords.longitude}, date: date1, color: color1, type:type1}]
-    })
-    //const timestampString = date1.toString();
-    await addDoc(collection(db, "pins"), 
-          {
-            'timestamp': date1, 
-            'coord': new GeoPoint(location1.coords.latitude, location1.coords.longitude),
-            'color': color1, 
-            'type': type1, 
-          }
-        );
-}
-
-createTwoButtonAlert() {
-    Alert.alert(
-      "Add a Goose",
-      "Please select an option for your marker",
-      [
-        
-        { text: "Friendly Goose", onPress: () => this.addMarker(this.state.location, "blue", "Friendly Goose") },
-        { text: "Mean Goose", onPress: () => this.addMarker(this.state.location, "red", "Mean Goose") },
-        { text: "Gosling", onPress: () => this.addMarker(this.state.location, "pink", "Gosling") },
-        { text: "Poopy", onPress: () => this.addMarker(this.state.location, "green", "Poopy") },
-        {
-          text: "Cancel",
-          onPress: () => console.log("Cancel Pressed"),
-          style: "cancel"
-        }
-      ]
-    );
-    }
-
-  async componentDidMount() { // Executes after first render     
-    const foregroundResponse = await Location.requestForegroundPermissionsAsync();
-    this.setState({ foregroundPerms: foregroundResponse });
-    if (foregroundResponse.status === "granted") {
-      this._getLocationAsync();
-    }
-  }}
- 
-
+}   
+  return (
+    <View style={styles.container}>
+    {loginPane()}
+    {mapPage()}
+    </View>
     
-    return (
-      <View style={styles.container}>
-      <StatusBar style="auto" />
-      {loginPane()}
-      {mapPage()}
-      </View>
-      
-    );
+  ); 
+}
   
-
-
-// Handy debugging functions                                                                 
-
-/** Show a popup alert dialog with msg and value before returning value */
-function alertVal(msg, val) {
-  alert(`${msg}:${JSON.stringify(val)}`);
-  return val;
-}
-
-/** Write msg and value to console.log before returning value */
-function logVal(msg, val) {
-  //console.log(`${msg}:${JSON.stringify(val)}`);
-  return val;
-}
-
 
 const styles = StyleSheet.create({
     container: {
