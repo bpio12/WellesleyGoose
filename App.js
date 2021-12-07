@@ -193,6 +193,7 @@ createTwoButtonAlert() {
           }
 
         </MapView>
+        
       }
       <TouchableOpacity 
         style={styles.button} 
@@ -203,6 +204,20 @@ createTwoButtonAlert() {
           />
       </TouchableOpacity>
 
+      <View style={styles.navBar}>
+      <TouchableOpacity >
+          <Icon 
+          name={'map'}
+          size={35}
+          />
+      </TouchableOpacity>
+      <TouchableOpacity >
+          <Icon 
+          name={'comment'}
+          size={35}
+          />
+      </TouchableOpacity>
+      </View>
       </View>
     );
   }
@@ -240,13 +255,14 @@ const styles = StyleSheet.create({
       borderColor:'#0FA3B1',
       alignItems: 'center',
       justifyContent: 'center',
-      width:100,
-      height:100,
-      borderRadius:100,
-      paddingVertical: 12,
-      paddingHorizontal: 32,
+      width:80,
+      height:80,
+      borderRadius:80,
+      paddingVertical: 10,
+      paddingHorizontal: 10,
       elevation: 3,
       backgroundColor: '#0FA3B1',
+      marginTop: -100,
     },
     titleText: {
       fontSize: 20,
@@ -255,6 +271,7 @@ const styles = StyleSheet.create({
     navBar: {
       flexDirection: 'row',
       paddingTop: 30,
+      marginBottom: 10,
       height: 64,
       backgroundColor: '#B5E2FA',
       justifyContent: 'space-around'
