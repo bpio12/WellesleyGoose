@@ -1,6 +1,5 @@
-import React, { useState, useEffect, Component } from "react";
-import GetLocation from 'react-native-get-location'
-import { StyleSheet, View, Text, TouchableOpacity,Alert, TextInput, ScrollView} from "react-native";
+import React, { Component } from "react";
+import { StyleSheet, View, Text, TouchableOpacity,Alert} from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -35,197 +34,6 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp); 
 
-function formatJSON(jsonVal) {
-  // Lyn sez: replacing \n by <br/> not necesseary if use this CSS:
-  //   white-space: break-spaces; (or pre-wrap)
-  // let replacedNewlinesByBRs = prettyPrintedVal.replace(new RegExp('\n', 'g'), '<br/>')
-  return JSON.stringify(jsonVal, null, 2);
-}
-function emailOf(user) {
-  if (user) {
-    return user.email;
-  } else {
-    return null;
-  }
-}
-
-export default function App() {
-  const [email, setEmail] = React.useState(''); // Provide default email for testing
-  const [password, setPassword] = React.useState(''); // Provide default passwored for testing
-  const [errorMsg, setErrorMsg] = React.useState('');
-  const [loggedInUser, setLoggedInUser] = React.useState(null);
-  const [location, setLocation] = React.useState(null); //fix this
-  const [locationServiceEnabled, setLocationServiceEnabled] = useState(false);
-  
-  //this.addMarker = this.addMarker.bind(this);
-
-
-
-useEffect( () => {
-  if (email !== '' && password !== '') {
-    // If defaults are provided for email and password, 
-    // use them to log in to avoid the hassle of logging in
-    signInUserEmailPassword();
-  } 
-  checkEmailVerification();
-  firebaseGetGoosePins();
-
-  CheckIfLocationEnabled();
-  GetCurrentLocation();
-  
-  // This has worked already, so commenting it out
-  // console.log(`on mount: populateFirestoreDB(testMessages)`);
-  // populateFirestoreDB(testMessages); 
-  return () => {
-    // Anything in here is fired on component unmount.
-    
-  }
-}, []);
-
-const CheckIfLocationEnabled = async () => {
-  let enabled = await Location.hasServicesEnabledAsync();
-
-  if (!enabled) {
-    Alert.alert(
-      'Location Service not enabled',
-      'Please enable your location services to continue',
-      [{ text: 'OK' }],
-      { cancelable: false }
-    );
-  } else {
-    setLocationServiceEnabled(enabled);
-  }
-};
-
-const GetCurrentLocation = async () => {
-  let { status } = await Location.requestPermissionsAsync();
-
-  if (status !== 'granted') {
-    Alert.alert(
-      'Permission not granted',
-      'Allow the app to use location service.',
-      [{ text: 'OK' }],
-      { cancelable: false }
-    );
-  }
-
-  let { coords } = await Location.getCurrentPositionAsync();
-
-  if (coords) {
-    setLocation(coords)
-    }
-  };
-
-function signUpUserEmailPassword() {
-  console.log('called signUpUserEmailPassword');
-  if (auth.currentUser) {
-    signOut(auth); // sign out auth's current user (who is not loggedInUser, 
-                   // or else we wouldn't be here
-  }
-  if (!email.includes('@')) {
-    setErrorMsg('Not a valid email address');
-    return;
-  }
-  if (password.length < 6) {
-    setErrorMsg('Password too short');
-    return;
-  }
-  // Invoke Firebase authentication API for Email/Password sign up 
-  createUserWithEmailAndPassword(auth, email, password)
-    .then((userCredential) => {
-      console.log(`signUpUserEmailPassword: sign up for email ${email} succeeded (but email still needs verification).`);
-
-      // Clear email/password inputs
-      const savedEmail = email; // Save for email verification
-      setEmail('');
-      setPassword('');
-
-      // Note: could store userCredential here if wanted it later ...
-      // console.log(`createUserWithEmailAndPassword: setCredential`);
-      // setCredential(userCredential);
-
-      // Send verication email
-      console.log('signUpUserEmailPassword: about to send verification email');
-      sendEmailVerification(auth.currentUser)
-      .then(() => {
-          console.log('signUpUserEmailPassword: sent verification email');
-          setErrorMsg(`A verification email has been sent to ${savedEmail}. You will not be able to sign in to this account until you click on the verification link in that email.`); 
-          // Email verification sent!
-          // ...
-        });
-    })
-    .catch((error) => {
-      console.log(`signUpUserEmailPassword: sign up failed for email ${email}`);
-      const errorMessage = error.message;
-      // const errorCode = error.code; // Could use this, too.
-      console.log(`createUserWithEmailAndPassword: ${errorMessage}`);
-      setErrorMsg(`createUserWithEmailAndPassword: ${errorMessage}`);
-    });
-}
-
-function signInUserEmailPassword() {
-  console.log('called signInUserEmailPassword');
-  console.log(`signInUserEmailPassword: emailOf(currentUser)0=${emailOf(auth.currentUser)}`); 
-  console.log(`signInUserEmailPassword: emailOf(loggedInUser)0=${emailOf(loggedInUser)}`); 
-  // Invoke Firebase authentication API for Email/Password sign in 
-  // Use Email/Password for authentication 
-  signInWithEmailAndPassword(auth, email, password)
-                             /* 
-                             defaultEmail ? defaultEmail : email, 
-                             defaultPassword ? defaultPassword : password
-                             */
-    .then((userCredential) => {
-      console.log(`signInUserEmailPassword succeeded for email ${email}; have userCredential for emailOf(auth.currentUser)=${emailOf(auth.currentUser)} (but may not be verified)`); 
-      console.log(`signInUserEmailPassword: emailOf(currentUser)1=${emailOf(auth.currentUser)}`); 
-      console.log(`signInUserEmailPassword: emailOf(loggedInUser)1=${emailOf(loggedInUser)}`); 
-
-      // Only log in auth.currentUser if their email is verified
-      checkEmailVerification();
-
-      // Clear email/password inputs 
-      setEmail('');
-      setPassword('');
-
-      // Note: could store userCredential here if wanted it later ...
-      // console.log(`createUserWithEmailAndPassword: setCredential`);
-      // setCredential(userCredential);
-  
-      })
-    .catch((error) => {
-      console.log(`signUpUserEmailPassword: sign in failed for email ${email}`);
-      const errorMessage = error.message;
-      // const errorCode = error.code; // Could use this, too.
-      console.log(`signInUserEmailPassword: ${errorMessage}`);
-      setErrorMsg(`signInUserEmailPassword: ${errorMessage}`);
-    });
-}
-
-function checkEmailVerification() {
-  if (auth.currentUser) {
-    console.log(`checkEmailVerification: auth.currentUser.emailVerified=${auth.currentUser.emailVerified}`);
-    if (auth.currentUser.emailVerified) {
-      console.log(`checkEmailVerification: setLoggedInUser for ${auth.currentUser.email}`);
-      setLoggedInUser(auth.currentUser);
-      console.log("checkEmailVerification: setErrorMsg('')")
-      setErrorMsg('')
-    } else {
-      console.log('checkEmailVerification: remind user to verify email');
-      setErrorMsg(`You cannot sign in as ${auth.currentUser.email} until you verify that this is your email address. You can verify this email address by clicking on the link in a verification email sent by this app to ${auth.currentUser.email}.`)
-    }
-  }
-}
-
-function logOut() {
-  console.log('logOut'); 
-  console.log(`logOut: emailOf(auth.currentUser)=${emailOf(auth.currentUser)}`);
-  console.log(`logOut: emailOf(loggedInUser)=${emailOf(loggedInUser)}`);
-  console.log(`logOut: setLoggedInUser(null)`);
-  setLoggedInUser(null);
-  console.log('logOut: signOut(auth)');
-  signOut(auth); // Will eventually set auth.currentUser to null     
-}
-
-
 let gooseLocations = []
 
 function docToMessage(msgDoc) {
@@ -253,90 +61,83 @@ async function firebaseGetGoosePins() {
   gooseLocations = pins
 }
 
+export default class App extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      location: null,
+      foregroundPerms: 'unknown',
+      rememberedLocations: [],
+    };
+    this.addMarker = this.addMarker.bind(this);
+  }
 
-/***************************************************************************
-   AUTHENTICATION CODE
-***************************************************************************/
-
-function loginPane() {
-  return (
-    <View style={loggedInUser === null ? styles.loginLogoutPane : styles.hidden}>
-      <View style={styles.labeledInput}>
-        <Text style={styles.inputLabel}>Email:</Text>
-        <TextInput placeholder="Enter an email address" 
-          style={styles.textInput} 
-          value={email} 
-          onChangeText={ textVal => setEmail(textVal)} />
-      </View>
-      <View style={styles.labeledInput}>
-        <Text style={styles.inputLabel}>Password:</Text>
-        <TextInput placeholder="Enter a password" 
-          style={styles.textInput} 
-          value={password} 
-          onChangeText={ textVal => setPassword(textVal)} />
-      </View>
-      <View style={styles.buttonHolder}>
-        <TouchableOpacity style={styles.button}
-           onPress={() => signUpUserEmailPassword()}>
-          <Text style={styles.buttonText}>Sign Up</Text>
-        </TouchableOpacity> 
-        <TouchableOpacity style={styles.button}
-           onPress={() => signInUserEmailPassword()}>
-          <Text style={styles.buttonText}>Sign In</Text>
-        </TouchableOpacity> 
-      </View>
-      <View style={errorMsg === '' ? styles.hidden : styles.errorBox}>
-        <Text style={styles.errorMessage}>{errorMsg}</Text>
-      </View>
-    </View>
-  );
-}
-
-function loggedInUserPane() {
-  return (
-    <ScrollView style={styles.jsonContainer}>
-      <Text style={styles.json}>Logged In User: {formatJSON(loggedInUser)}</Text>
-    </ScrollView>
-  );
-}
-
-function createTwoButtonAlert() {
-  Alert.alert(
-    "Add a Goose",
-    "Please select an option for your marker",
-    [
-      
-      { text: "Friendly Goose", onPress: () => this.addMarker({location}, "blue", "Friendly Goose") },
-      { text: "Mean Goose", onPress: () => this.addMarker({location}, "red", "Mean Goose") },
-      { text: "Gosling", onPress: () => this.addMarker({location}, "pink", "Gosling") },
-      { text: "Poopy", onPress: () => this.addMarker({location}, "green", "Poopy") },
+  _getLocationAsync = async () => {
+    // watchPositionAsync returns location with lat, long, & more on location change
+    this.subscription = await Location.watchPositionAsync(
+      // Argument #1: location options
       {
-        text: "Cancel",
-        onPress: () => console.log("Cancel Pressed"),
-        style: "cancel"
+        enableHighAccuracy: true,
+        distanceInterval: 1,
+        timeInterval: 10000 // check for location change every 10 seconds
+      },
+      // Argument #2: location callback
+      newLocation => {
+        this.setState({ location: newLocation});
       }
-    ]
-  );
-  }
+    );
+  };
 
-function addMarker(location1, color1, type1) {
-  let date1 = new Date(Date.now()).toString();
-  addDoc(collection(db, "pins"), 
+  async addMarker(location1, color1, type1) {
+    let date1 = new Date(Date.now()).toString();
+    this.setState({
+      rememberedLocations: [...this.state.rememberedLocations, {coord: {latitude: location1.coords.latitude, longitude: location1.coords.longitude}, date: date1, color: color1, type:type1}]
+    })
+    //const timestampString = date1.toString();
+    await addDoc(collection(db, "pins"), 
+          {
+            'timestamp': date1, 
+            'coord': new GeoPoint(location1.coords.latitude, location1.coords.longitude),
+            'color': color1, 
+            'type': type1, 
+          }
+        );
+}
+
+createTwoButtonAlert() {
+    Alert.alert(
+      "Add a Goose",
+      "Please select an option for your marker",
+      [
+        
+        { text: "Friendly Goose", onPress: () => this.addMarker(this.state.location, "blue", "Friendly Goose") },
+        { text: "Mean Goose", onPress: () => this.addMarker(this.state.location, "red", "Mean Goose") },
+        { text: "Gosling", onPress: () => this.addMarker(this.state.location, "pink", "Gosling") },
+        { text: "Poopy", onPress: () => this.addMarker(this.state.location, "green", "Poopy") },
         {
-          'timestamp': date1, 
-          'coord': new GeoPoint(location1.coords.latitude, location1.coords.longitude),
-          'color': color1, 
-          'type': type1, 
+          text: "Cancel",
+          onPress: () => console.log("Cancel Pressed"),
+          style: "cancel"
         }
-      );
+      ]
+    );
+    }
+
+  async componentDidMount() { // Executes after first render     
+    const foregroundResponse = await Location.requestForegroundPermissionsAsync();
+    this.setState({ foregroundPerms: foregroundResponse });
+    if (foregroundResponse.status === "granted") {
+      this._getLocationAsync();
+    }
   }
 
-function mapPage() {
-  return(
-  <View style={loggedInUser === null ? styles.hidden : styles.container}>
-  
-      <View style={styles.navBar}>
+
+    render() {
+      firebaseGetGoosePins()
       
+    return (
+      <View style={styles.container}>
+      <View style={styles.navBar}>
       <Icon 
           name={'user'}
           size={30}
@@ -348,11 +149,11 @@ function mapPage() {
       />
       </View>
       
-      {({location} !== null) &&
+      {(this.state.location!==null) &&
         <MapView
           initialRegion={
-              {latitude: {location}.latitude,
-               longitude: {location}.longitude,
+              {latitude: this.state.location.coords.latitude,
+               longitude: this.state.location.coords.longitude,
                latitudeDelta: 0.045,
                longitudeDelta: 0.045
               }
@@ -376,6 +177,21 @@ function mapPage() {
             </Marker>
             )
           }
+          
+        {
+          this.state.rememberedLocations.map( sloc =>
+            <Marker key={sloc.date}
+              coordinate={
+                {latitude: sloc.coord.latitude,
+                longitude: sloc.coord.longitude}
+              }
+              pinColor={sloc.color}
+              title={sloc.type}
+            >
+            </Marker>
+            )
+          }
+
         </MapView>
       }
       <TouchableOpacity 
@@ -388,17 +204,24 @@ function mapPage() {
       </TouchableOpacity>
 
       </View>
-  )
-}   
-  return (
-    <View style={styles.container}>
-    {loginPane()}
-    {mapPage()}
-    </View>
-    
-  ); 
+    );
+  }
 }
-  
+
+// Handy debugging functions                                                                 
+
+/** Show a popup alert dialog with msg and value before returning value */
+function alertVal(msg, val) {
+  alert(`${msg}:${JSON.stringify(val)}`);
+  return val;
+}
+
+/** Write msg and value to console.log before returning value */
+function logVal(msg, val) {
+  //console.log(`${msg}:${JSON.stringify(val)}`);
+  return val;
+}
+
 
 const styles = StyleSheet.create({
     container: {
@@ -412,9 +235,6 @@ const styles = StyleSheet.create({
     text: {
       padding: 10,
     },
-    hidden: {
-      display: 'none',
-  },
     button: {
       borderWidth:1,
       borderColor:'#0FA3B1',
