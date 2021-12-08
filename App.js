@@ -1,5 +1,11 @@
-import React, { Component } from "react";
-import { StyleSheet, View, Text, TouchableOpacity,Alert} from "react-native";
+import React, { Component, useState } from "react";
+import { StyleSheet, View, Text, TouchableOpacity,Alert,
+         Button, 
+         LogBox, // Added by lyn to hide warning messages
+        } from "react-native";
+import Constants from 'expo-constants'; // Added by Lyn
+import { StatusBar } from 'expo-status-bar'; // Added by Lyn
+
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -34,6 +40,11 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp); 
 
+// Added by lyn to hide warning messages
+LogBox.ignoreLogs(['Setting a timer', 
+                   'AsyncStorage', // While we're at it, squelch AyncStorage, too!
+                   ]); 
+
 let gooseLocations = []
 
 function docToMessage(msgDoc) {
@@ -61,7 +72,35 @@ async function firebaseGetGoosePins() {
   gooseLocations = pins
 }
 
-export default class App extends Component {
+
+export default function App() {
+  // Lyn's simple top level app that puts to togther 
+  // a function-based CounterComponent with your GooseComponent
+  // as an illustration of mixing the two
+  return (
+    <View style={styles.screen}>
+      <StatusBar style="auto" /> 
+      <Counter/> 
+      <GooseMap style={{flex: 1}}/>
+    </View>
+  );
+}
+
+function Counter () {
+  [count, setCount] = useState(0);
+  
+  return (
+    <View>
+      <Text>{count}</Text>
+      <Button  
+         title={'increment'}
+         onPress={() => setCount(count+1)}
+       />
+    </View>
+  );
+}
+
+class GooseMap extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -97,7 +136,7 @@ export default class App extends Component {
     await addDoc(collection(db, "pins"), 
           {
             'timestamp': date1, 
-            'coord': new GeoPoint(location1.coords.latitude, location1.coords.longitude),
+             // 'coord': new GeoPoint(location1.coords.latitude, location1.coords.longitude),
             'color': color1, 
             'type': type1, 
           }
@@ -148,6 +187,9 @@ createTwoButtonAlert() {
           size={30}
       />
       </View>
+
+      {/*(this.state.location!==null) &&
+         <MyMapComponent />*/}
       
       {(this.state.location!==null) &&
         <MapView
@@ -191,11 +233,9 @@ createTwoButtonAlert() {
             </Marker>
             )
           }
-
         </MapView>
-        
       }
-      <TouchableOpacity 
+       <TouchableOpacity 
         style={styles.button} 
         onPress={() => this.createTwoButtonAlert()}> 
           <Icon 
@@ -223,6 +263,124 @@ createTwoButtonAlert() {
   }
 }
 
+class MyMapComponent extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      location: null,
+      foregroundPerms: 'unknown', 
+      rememberedLocations: []
+    };
+    this.addMarker = this.addMarker.bind(this);
+  }
+
+  _getLocationAsync = async () => {
+    // watchPositionAsync returns location with lat, long, & more on location change
+    this.subscription = await Location.watchPositionAsync(
+      // Argument #1: location options
+      {
+        enableHighAccuracy: true,
+        distanceInterval: 1,
+        timeInterval: 10000 // check for location change every 10 seconds
+      },
+      // Argument #2: location callback
+      newLocation => {
+        // this.setState({ location: alertVal('newLoc', newLocation)}); 
+        this.setState({ location: newLocation}); 
+      },
+      // Argument #3?: error callback? (not in current API
+      // error => console.log(error)
+      );
+  };
+
+  async componentDidMount() { // Executes after first render
+    const foregroundResponse = await Location.requestForegroundPermissionsAsync();
+    //this.setState({ foregroundPerms: alertVal('perms', foregroundResponse) });
+    this.setState({ foregroundPerms: foregroundResponse });
+    if (foregroundResponse.status === "granted") {
+      this._getLocationAsync();
+    }
+  }
+ 
+  addMarker() {
+    // alert(new Date(Date.now()).toString());
+    this.setState({rememberedLocations: 
+      [... this.state.rememberedLocations, 
+        {timestamp: new Date(Date.now()).toString(), 
+         coord: {latitude: this.state.location.coords.latitude, 
+                 longitude: this.state.location.coords.longitude
+          }
+        }
+       ]
+      }
+    );
+ }
+
+  render() {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.text}>{`foregroundPerms: ${JSON.stringify(this.state.foregroundPerms)}`}</Text>
+        <Text style={styles.text}>{`location: ${JSON.stringify(this.state.location)}`}</Text>
+      <Button title='Add Marker for current location'
+              onPress={() => this.addMarker()}
+      />
+      {(this.state.location!==null) &&
+        <MapView
+          initialRegion={ 
+              {latitude: this.state.location.coords.latitude, 
+               longitude: this.state.location.coords.longitude, 
+               latitudeDelta: 0.045,
+               longitudeDelta: 0.045
+              }
+          } 
+          showsCompass={true}
+          showsUserLocation={true}
+          rotateEnabled={true}
+          ref={map => {
+               this.map = map;
+            }}
+           style={{ flex: 1 }}
+          >
+         <Marker key='myLocation' // each marker needs a unique key
+            coordinate={ // outer braces escape to JS; inner ones make object
+               {latitude: this.state.location.coords.latitude, 
+                longitude: this.state.location.coords.longitude,
+               }
+             }
+             pinColor='green'
+             title='This is a long marker title'
+          >
+          </Marker>
+       {/*
+         specialLocations.map( sloc  => 
+            <Marker key={sloc.name}
+                    coordinate={sloc.coord}
+                    pinColor={sloc.color}
+                    title={sloc.name}
+            >
+            </Marker>
+         )
+        */
+       }
+       {/*
+         this.state.rememberedLocations.map( rloc  => 
+            <Marker key={rloc.timestamp}
+                    coordinate={rloc.coord}
+                    pinColor='red'
+                    title={rloc.timestamp}
+            >
+            </Marker>
+         )
+        */
+       }
+        </MapView>
+      }
+      </View>
+    );
+  }
+}
+
+
 // Handy debugging functions                                                                 
 
 /** Show a popup alert dialog with msg and value before returning value */
@@ -239,8 +397,17 @@ function logVal(msg, val) {
 
 
 const styles = StyleSheet.create({
+  screen: { // Added by lyn 
+    flex: 1,
+    width: '100%',
+    paddingTop: Constants.statusBarHeight,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+   },
     container: {
       flex: 1,
+      width: '100%',// Added by lyn
       backgroundColor: "#B5E2FA",
       marginTop: 40,
       marginBottom:20,
