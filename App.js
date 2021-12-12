@@ -1,9 +1,10 @@
-import React, { Component } from "react";
+import React, { Component, useState, useContext } from "react";
 import { StyleSheet, View, Text, TouchableOpacity,Alert} from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { initializeApp } from "firebase/app";
+import { StatusBar } from 'expo-status-bar';
 import { // access to authentication features:
          getAuth, 
          // for email/password authentication: 
@@ -17,7 +18,13 @@ import { // access to Firestore storage features:
          collection, doc, addDoc, setDoc,
          query, where, getDocs, GeoPoint
   } from "firebase/firestore";
+import StateContext from './components/StateContext.js';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Map from './components/map.js';
+import Honk from './components/honk.js';
 
+const Stack = createNativeStackNavigator();
 
 const firebaseConfig = {
   apiKey: "AIzaSyCeJf04mc48AC_t2gl5sXegKpRVbsv5Zqk",
@@ -34,7 +41,7 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp); 
 
-let gooseLocations = []
+
 
 function docToMessage(msgDoc) {
   // msgDoc has the form {id: timestampetring, 
@@ -49,30 +56,33 @@ function docToMessage(msgDoc) {
   return {...data, date: new Date(data.timestamp)}
 }
 
-async function firebaseGetGoosePins() {
-  const q = query(collection(db, 'pins'));
-  const querySnapshot = await getDocs(q);
-  // const messages = Array.from(querySnapshot).map( docToMessage );
-  let pins = []; 
-  querySnapshot.forEach(doc => {
-      pins.push(docToMessage(doc));
-  });
-  //console.log(gooseLocations)
-  gooseLocations = pins
-}
 
-export default class App extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      location: null,
-      foregroundPerms: 'unknown',
-      rememberedLocations: [],
-    };
-    this.addMarker = this.addMarker.bind(this);
+
+
+
+
+
+export default function App() {
+  const [location, setLocation] = useState(null)
+  const [foregroundPerms, setForegroundPerms] = useState('unknown')
+  const [rememberedLocations, setRememberedLocations] = useState([])
+  const [gooseLocations, setGooseLocations] = useState([])
+
+
+  
+
+  async function firebaseGetGoosePins() {
+    const q = query(collection(db, 'pins'));
+    const querySnapshot = await getDocs(q);
+    // const messages = Array.from(querySnapshot).map( docToMessage );
+    let pins = []; 
+    querySnapshot.forEach(doc => {
+        pins.push(docToMessage(doc));
+    });
+    setGooseLocations(pins)
   }
 
-  _getLocationAsync = async () => {
+  async function _getLocationAsync() {
     // watchPositionAsync returns location with lat, long, & more on location change
     this.subscription = await Location.watchPositionAsync(
       // Argument #1: location options
@@ -86,14 +96,11 @@ export default class App extends Component {
         this.setState({ location: newLocation});
       }
     );
-  };
+  }
 
-  async addMarker(location1, color1, type1) {
+  async function addMarker(location1, color1, type1) {
     let date1 = new Date(Date.now()).toString();
-    this.setState({
-      rememberedLocations: [...this.state.rememberedLocations, {coord: {latitude: location1.coords.latitude, longitude: location1.coords.longitude}, date: date1, color: color1, type:type1}]
-    })
-    //const timestampString = date1.toString();
+    setRememberedLocations([...rememberedLocations, {coord: {latitude: location1.coords.latitude, longitude: location1.coords.longitude}, date: date1, color: color1, type:type1}]);
     await addDoc(collection(db, "pins"), 
           {
             'timestamp': date1, 
@@ -104,16 +111,16 @@ export default class App extends Component {
         );
 }
 
-createTwoButtonAlert() {
+function createTwoButtonAlert() {
     Alert.alert(
       "Add a Goose",
       "Please select an option for your marker",
       [
         
-        { text: "Friendly Goose", onPress: () => this.addMarker(this.state.location, "blue", "Friendly Goose") },
-        { text: "Mean Goose", onPress: () => this.addMarker(this.state.location, "red", "Mean Goose") },
-        { text: "Gosling", onPress: () => this.addMarker(this.state.location, "pink", "Gosling") },
-        { text: "Poopy", onPress: () => this.addMarker(this.state.location, "green", "Poopy") },
+        { text: "Friendly Goose", onPress: () => addMarker(location, "blue", "Friendly Goose") },
+        { text: "Mean Goose", onPress: () => addMarker(location, "red", "Mean Goose") },
+        { text: "Gosling", onPress: () => addMarker(location, "pink", "Gosling") },
+        { text: "Poopy", onPress: () => addMarker(location, "green", "Poopy") },
         {
           text: "Cancel",
           onPress: () => console.log("Cancel Pressed"),
@@ -121,107 +128,43 @@ createTwoButtonAlert() {
         }
       ]
     );
-    }
+    };
 
-  async componentDidMount() { // Executes after first render     
+  async function componentDidMount() { // Executes after first render     
     const foregroundResponse = await Location.requestForegroundPermissionsAsync();
     this.setState({ foregroundPerms: foregroundResponse });
     if (foregroundResponse.status === "granted") {
       this._getLocationAsync();
     }
-  }
+  }; 
 
+    //render() {
+     // firebaseGetGoosePins();
 
-    render() {
-      firebaseGetGoosePins()
+    const screenProps = {gooseLocations, rememberedLocations, location}
       
     return (
-      <View style={styles.container}>
-      <View style={styles.navBar}>
-      <Icon 
-          name={'user'}
-          size={30}
-      />
-        <Text style={styles.titleText}>Goose</Text>
-        <Icon 
-          name={'bell'}
-          size={30}
-      />
-      </View>
-      
-      {(this.state.location!==null) &&
-        <MapView
-          initialRegion={
-              {latitude: this.state.location.coords.latitude,
-               longitude: this.state.location.coords.longitude,
-               latitudeDelta: 0.045,
-               longitudeDelta: 0.045
-              }
-          }
-          showsCompass={true}
-          showsUserLocation={true}
-          rotateEnabled={true}
-          ref={map => { this.map = map; }}
-          style={{ flex: 1 }}
-          > 
-          {
-          gooseLocations.map( sloc =>
-            <Marker key={sloc.name}
-              coordinate={
-                {latitude: sloc.coord.latitude,
-                longitude: sloc.coord.longitude}
-              }
-              pinColor={sloc.color}
-              title={sloc.type}
-            >
-            </Marker>
-            )
-          }
+      <StateContext.Provider value={screenProps}>
+      <NavigationContainer>
+        <StatusBar/>
+        <Stack.Navigator 
+            screenOptions={{ headerStyle: { backgroundColor: 'coral' }}}
+            initialRouteName="Map">
+          <Stack.Screen 
+              name="Map" 
+              initialParams={{ initialId: 42}}
+              component={Map}
+              /> 
+         {/*  <Stack.Screen 
+            name="Honk" component={Honk} 
+          /> */}
           
-        {
-          this.state.rememberedLocations.map( sloc =>
-            <Marker key={sloc.date}
-              coordinate={
-                {latitude: sloc.coord.latitude,
-                longitude: sloc.coord.longitude}
-              }
-              pinColor={sloc.color}
-              title={sloc.type}
-            >
-            </Marker>
-            )
-          }
-
-        </MapView>
-        
-      }
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={() => this.createTwoButtonAlert()}> 
-          <Icon 
-          name={'plus'}
-          size={30}
-          />
-      </TouchableOpacity>
-
-      <View style={styles.navBar}>
-      <TouchableOpacity >
-          <Icon 
-          name={'map'}
-          size={35}
-          />
-      </TouchableOpacity>
-      <TouchableOpacity >
-          <Icon 
-          name={'comment'}
-          size={35}
-          />
-      </TouchableOpacity>
-      </View>
-      </View>
+        </Stack.Navigator>
+    </NavigationContainer>
+    </StateContext.Provider>
     );
   }
-}
+//}
 
 // Handy debugging functions                                                                 
 
@@ -238,42 +181,3 @@ function logVal(msg, val) {
 }
 
 
-const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: "#B5E2FA",
-      marginTop: 40,
-      marginBottom:20,
-      marginLeft:10,
-      marginRight:10,
-    },
-    text: {
-      padding: 10,
-    },
-    button: {
-      borderWidth:1,
-      borderColor:'#0FA3B1',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width:80,
-      height:80,
-      borderRadius:80,
-      paddingVertical: 10,
-      paddingHorizontal: 10,
-      elevation: 3,
-      backgroundColor: '#0FA3B1',
-      marginTop: -100,
-    },
-    titleText: {
-      fontSize: 20,
-      fontWeight: "bold"
-    },
-    navBar: {
-      flexDirection: 'row',
-      paddingTop: 30,
-      marginBottom: 10,
-      height: 64,
-      backgroundColor: '#B5E2FA',
-      justifyContent: 'space-around'
-   },
-  });
